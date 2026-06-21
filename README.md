@@ -217,10 +217,25 @@ bridge/      Node HTTP bridge (loopback, token-gated, read-only)
   test/                              # node:test
   fetchers.example.json              # sample fetcher config (no real tool)
 extension/   Chrome MV3 (manifest, background, content, sidepanel.*, vendor/)
+eval/        Evaluation harness (see eval/README.md)
 ```
 
 The Codex backend is **experimental**: argv ordering is unit-tested; its event
 stream tolerates schema drift and falls back to `--output-last-message`.
+
+### Evaluation harness
+
+[`eval/`](eval/README.md) runs graded cases against the **real** Claude backend
+and reports answer accuracy, **tool-call precision/recall**, token cost, and
+latency. It asserts both answer correctness and the read-only security envelope
+— including an adversarial case that confirms the agent refuses to write and
+never calls a write tool.
+
+```bash
+cd eval
+npm run eval     # run all cases against the live backend
+npm test         # unit-test the grading logic — no model calls (CI-safe)
+```
 
 ## License
 

@@ -5,3 +5,5 @@ node_modules/
 # real document-fetcher config may reference internal tools — keep it out of the repo
 bridge/fetchers.json
 fetchers.json
+# eval harness output — regenerated on every run
+eval/results.json

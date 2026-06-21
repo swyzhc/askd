@@ -179,12 +179,27 @@ export async function* runClaude({ session, prompt, abortController }) {
           sessionId: finalSessionId,
           text,
           isError: Boolean(msg.is_error),
+          // Real per-turn accounting from the SDK result message — consumed by
+          // the eval harness for cost/latency metrics; the server ignores it.
+          usage: msg.usage || null,
+          costUsd: typeof msg.total_cost_usd === 'number' ? msg.total_cost_usd : null,
+          durationMs: typeof msg.duration_ms === 'number' ? msg.duration_ms : null,
+          numTurns: typeof msg.num_turns === 'number' ? msg.num_turns : null,
         }
         return
       }
     }
     // Stream ended without an explicit result message.
-    yield { type: 'done', sessionId: finalSessionId, text: acc, isError: false }
+    yield {
+      type: 'done',
+      sessionId: finalSessionId,
+      text: acc,
+      isError: false,
+      usage: null,
+      costUsd: null,
+      durationMs: null,
+      numTurns: null,
+    }
   } catch (e) {
     if (abortController?.signal?.aborted) {
       yield { type: 'aborted' }

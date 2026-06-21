@@ -1,0 +1,15 @@
+{
+  "name": "askd-eval",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evaluation harness for askd — runs graded cases against the real Claude backend and reports accuracy, tool precision/recall, and cost.",
+  "type": "module",
+  "scripts": {
+    "eval": "node run.js",
+    "eval:judge": "node run.js --judge",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
