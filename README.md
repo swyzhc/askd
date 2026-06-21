@@ -1,5 +1,7 @@
 # askd — local reading assistant in your Chrome side panel
 
+[![CI](https://github.com/swyzhc/askd/actions/workflows/ci.yml/badge.svg)](https://github.com/swyzhc/askd/actions/workflows/ci.yml)
+
 Ask your **already-logged-in** Claude Code or Codex CLI about whatever you're
 reading — a web page, a corporate doc, a GitHub README, a PDF — right from a
 Chrome side panel. askd **only reads**: it can summarize, explain, and compare a
@@ -204,11 +206,18 @@ State lives in `~/.askd/`. Delete `sessions.json` to wipe conversations.
 
 ## Development
 
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design — request
+lifecycle, the three-layer read-only security model, context budgeting,
+citations, and the backend adapter abstraction.
+
 ```bash
 cd bridge
-npm test     # URL-key normalization, read-only safety policy, codex argv ordering
+npm test     # safety policy, prompt/context budgeting, citations, urlkey, codex argv
 npm start
 ```
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the bridge and
+eval grader test suites on Node 20 and 22.
 
 ```
 bridge/      Node HTTP bridge (loopback, token-gated, read-only)

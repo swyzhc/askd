@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: bridge/package-lock.json
+
+      - name: Install bridge deps
+        working-directory: bridge
+        run: npm ci
+
+      - name: Bridge tests (safety policy, prompt/context budgeting, citations, urlkey, codex argv)
+        working-directory: bridge
+        run: npm test
+
+      # Grader logic only — no model calls, so it is safe and deterministic in CI.
+      # The live eval (run.js) needs a logged-in Claude Code and is run locally.
+      - name: Eval grader tests
+        working-directory: eval
+        run: npm test
