@@ -220,5 +220,4 @@ stream tolerates schema drift and falls back to `--output-last-message`.
 
 ## License
 
-[MIT](LICENSE). Set the copyright holder in `LICENSE` to your name before
-publishing.
+[MIT](LICENSE) © 2026 swyzhc
