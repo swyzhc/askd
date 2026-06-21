@@ -75,13 +75,25 @@ function buildCanUseTool(session) {
   }
 }
 
+const AUTH_HELP =
+  "Claude Code isn't logged in on this machine. Open a terminal, run `claude`, sign in, then retry. (askd uses your local Claude Code login — it has no API key of its own.)"
+
+// The Claude CLI sometimes reports auth failure as plain text — e.g.
+// "Not logged in. Please run /login" — via the result message rather than a
+// thrown error, so we detect it on both paths.
+function looksLikeAuthError(text) {
+  return /not logged in|run\s+\/login|invalid api key|unauthorized|authentication_error|no .*api key/i.test(
+    text || '',
+  )
+}
+
 function humanizeClaudeError(e) {
   const msg = String(e?.message || e || '')
   if (/ENOENT|not found|command not found/i.test(msg)) {
     return 'Claude Code CLI was not found on PATH. Install it and make sure `claude` runs in a terminal.'
   }
-  if (/not.*log|auth|credential|unauthor|401/i.test(msg)) {
-    return 'Claude Code is not authenticated. Run `claude` once in a terminal to log in, then retry.'
+  if (/not.*log|auth|credential|unauthor|401|\/login/i.test(msg)) {
+    return AUTH_HELP
   }
   return `Claude backend error: ${msg}`
 }
@@ -151,6 +163,11 @@ export async function* runClaude({ session, prompt, abortController }) {
         if (msg.session_id) finalSessionId = msg.session_id
         const text =
           (typeof msg.result === 'string' && msg.result) || acc || '(no output)'
+        // Surface a clean, actionable message instead of the raw CLI auth text.
+        if (looksLikeAuthError(text)) {
+          yield { type: 'error', message: AUTH_HELP }
+          return
+        }
         yield {
           type: 'done',
           sessionId: finalSessionId,

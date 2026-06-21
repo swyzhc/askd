@@ -623,11 +623,15 @@ async function testConnection() {
       .map((f) => `${f.name}: ${f.available ? 'ok' : 'missing'}`)
       .join(' · ')
     const parts = [
-      `Claude: ${b.claude.available ? 'ok' : 'missing'}`,
-      `Codex: ${b.codex.available ? 'ok' : 'missing'}`,
+      `Claude: ${b.claude.available ? 'found' : 'missing'}`,
+      `Codex: ${b.codex.available ? 'found' : 'missing'}`,
     ]
     if (fetchers) parts.push(fetchers)
-    setStatus(els.settingsStatus, `Connected. ${parts.join(' · ')}.`, 'ok')
+    setStatus(
+      els.settingsStatus,
+      `Connected. ${parts.join(' · ')}. ("found" = CLI installed; make sure Claude Code is also logged in.)`,
+      'ok',
+    )
     clearBanner()
   } catch (e) {
     setStatus(els.settingsStatus, friendlyError({ code: e.code, message: e.message }), 'bad')

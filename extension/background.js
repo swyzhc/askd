@@ -197,23 +197,30 @@ function enablePanelOnActionClick() {
 chrome.runtime.onInstalled.addListener(enablePanelOnActionClick)
 enablePanelOnActionClick()
 
-chrome.commands.onCommand.addListener(async (command) => {
+chrome.commands.onCommand.addListener((command, tab) => {
   if (command !== 'open-with-selection') return
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    if (tab?.id == null) return
-    // Record intent so a freshly-opening panel can pick up the live selection.
-    // Fire-and-forget so we don't burn the user gesture before opening the panel.
+  // CRITICAL: sidePanel.open() must run synchronously inside the user gesture.
+  // Any `await` before it (e.g. tabs.query) invalidates the gesture and the
+  // open is silently rejected — that was why ⌘⇧L appeared to do nothing.
+  // chrome.commands.onCommand hands us the active tab, so no query is needed.
+  const tabId = tab && tab.id != null ? tab.id : null
+  const windowId = tab && tab.windowId != null ? tab.windowId : null
+  if (tabId != null) {
+    chrome.sidePanel.open({ tabId }).catch(() => {
+      if (windowId != null) chrome.sidePanel.open({ windowId }).catch(() => {})
+    })
     chrome.storage.session
-      .set({ pendingCapture: { tabId: tab.id, at: Date.now() } })
+      .set({ pendingCapture: { tabId, at: Date.now() } })
       .catch(() => {})
-    await chrome.sidePanel.open({ tabId: tab.id })
     setTimeout(() => {
       chrome.runtime
-        .sendMessage({ kind: 'event', event: 'capture-selection', tabId: tab.id })
+        .sendMessage({ kind: 'event', event: 'capture-selection', tabId })
         .catch(() => {})
     }, 150)
-  } catch {
-    /* opening requires a user gesture, which the command provides */
+    return
   }
+  // Rare: the event carried no tab. Best-effort fallback.
+  chrome.tabs.query({ active: true, currentWindow: true }).then(([t]) => {
+    if (t && t.id != null) chrome.sidePanel.open({ tabId: t.id }).catch(() => {})
+  })
 })

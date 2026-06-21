@@ -45,8 +45,10 @@ You are responsible for where you open it. Different companies, different rules.
 ### Prerequisites
 
 - **Node.js ≥ 20** (`node --version`)
-- **Claude Code** installed and logged in — run `claude` once and sign in. (askd
-  uses your existing login; it never sees your API keys.)
+- **Claude Code** installed **and logged in** — run `claude` once **and sign in**
+  (askd drives your local login and has no API key of its own; if Claude Code
+  isn't logged in, every question fails with *"Not logged in / Please run
+  /login"*).
 - *Optional:* **Codex CLI** (`codex`) logged in, for the experimental Codex backend.
 - *Optional:* a **document fetcher** CLI for specific sites (see
   [Document fetchers](#document-fetchers-optional)).
@@ -193,7 +195,8 @@ State lives in `~/.askd/`. Delete `sessions.json` to wipe conversations.
 | *Fetcher "missing permission/scope"* | The doc needs scopes your CLI login lacks; use the fallback or re-auth. |
 | *"Couldn't read this page"* | Reload the page — content scripts don't attach to tabs opened before install. `chrome://`/Web Store/PDF-viewer pages can't be read at all. |
 | *`file://` pages/PDFs* | Enable **Allow access to file URLs** for askd on `chrome://extensions`. |
-| *Claude login error* | Run `claude` once and sign in, then retry. |
+| *"Not logged in" / "Please run /login"* | Your Claude Code isn't authenticated. Run `claude` in a terminal and sign in, then retry. askd uses your local login, not an API key. ("Test connection" showing *Claude: found* only means the CLI is installed, not logged in.) |
+| *⌘⇧L / Ctrl+Shift+L does nothing* | Another extension may have claimed the shortcut. Open `chrome://extensions/shortcuts`, find askd's *"Open askd with the current selection"*, and (re)assign it. Reload the extension afterward. |
 
 ---
 
