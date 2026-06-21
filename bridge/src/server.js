@@ -181,11 +181,10 @@ async function handleChat(req, res) {
     hasLocalAccess: Boolean(session.cwd),
   })
 
-  // Record the user's turn for display + Codex history splicing.
-  appendMessage(key, 'user', composeUserDisplay(message, quoteList))
-
   let gen
   if (backend === 'codex') {
+    // session.messages holds only PRIOR turns here (the new one is appended after
+    // the prompt is built), so Codex's history splice doesn't duplicate it.
     const prompt = buildCodexPrompt({
       session,
       message,
@@ -197,8 +196,10 @@ async function handleChat(req, res) {
     })
     gen = runCodex({ session, prompt, abortController })
   } else {
-    // Claude keeps history via resume; only send page context on the first turn.
-    const includeContext = !session.claudeSessionId
+    // Claude keeps history via resume. With no resume id yet but prior turns
+    // present (e.g. after a backend switch), replay them so Claude continues the
+    // thread too — symmetric with Codex. Page context goes only on the fresh turn.
+    const fresh = !session.claudeSessionId
     const prompt = buildClaudeTurn({
       message,
       quotes: quoteList,
@@ -206,10 +207,16 @@ async function handleChat(req, res) {
       url,
       context: pageContext,
       contextSource,
-      includeContext,
+      includeContext: fresh,
+      history: fresh ? session.messages : [],
     })
     gen = runClaude({ session, prompt, abortController })
   }
+
+  // Record the user's turn AFTER building the prompt so the history splice above
+  // reflects only prior turns (no duplicate of the current question), and persist
+  // it for display + future replay.
+  appendMessage(key, 'user', composeUserDisplay(message, quoteList))
 
   let assistantText = ''
   try {

@@ -33,6 +33,16 @@ export function quotesBlock(quotes) {
     .join('\n\n')
 }
 
+// Replay prior turns as one block. Used wherever there's no server-side resume:
+// always for Codex, and for Claude's first turn after a backend switch.
+function historyBlock(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) return ''
+  const hist = messages
+    .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+    .join('\n\n')
+  return `<conversation_so_far>\n${hist}\n</conversation_so_far>`
+}
+
 /**
  * One user turn for Claude. Page context is included only on the first turn of
  * a conversation (when there's no resume id yet); later turns rely on resume.
@@ -45,12 +55,17 @@ export function buildClaudeTurn({
   context,
   contextSource,
   includeContext,
+  history,
 }) {
   const parts = []
   if (includeContext) {
     const pc = pageContextBlock({ title, url, context, contextSource })
     if (pc) parts.push(pc)
   }
+  // Replay earlier turns when resume isn't available yet (e.g. right after a
+  // backend switch) so Claude picks up the thread; normal turns rely on resume.
+  const hb = historyBlock(history)
+  if (hb) parts.push(hb)
   const qb = quotesBlock(quotes)
   if (qb) parts.push(qb)
   parts.push(message || '')
@@ -87,12 +102,8 @@ export function buildCodexPrompt({
   const parts = [codexPersona(Boolean(session.cwd))]
   const pc = pageContextBlock({ title, url, context, contextSource })
   if (pc) parts.push(pc)
-  if (session.messages && session.messages.length) {
-    const hist = session.messages
-      .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-      .join('\n\n')
-    parts.push(`<conversation_so_far>\n${hist}\n</conversation_so_far>`)
-  }
+  const hb = historyBlock(session.messages)
+  if (hb) parts.push(hb)
   const qb = quotesBlock(quotes)
   if (qb) parts.push(qb)
   parts.push(`User: ${message || ''}`)
