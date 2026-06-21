@@ -1,14 +1,18 @@
-// Token budgeting and conversation compaction for the prompts sent to backends.
+// Client-side INPUT budgeting for the content askd injects into each turn.
 //
-// askd's Codex path — and the Claude path right after a backend switch — splice
-// the whole conversation plus the page content into a single prompt. On a long
-// page or a long thread that grows without bound. This module keeps it within a
-// token budget the way a main agent loop does:
+// This is not the agent loop's context compaction — the Agent SDK already
+// manages history/tool-results across turns (and askd reuses that on the Claude
+// path via resume). But compaction can only shrink what's already in the window
+// from earlier turns; it can't shrink the page text and replayed history askd
+// stuffs into the CURRENT turn. Budgeting that input is the client's job:
 //
 //   1. estimate tokens cheaply (chars/4, the standard rough heuristic);
 //   2. keep the highest-value content WHOLE (recent turns, page head + tail);
 //   3. COMPACT the rest — drop the middle of a huge page, collapse old turns —
 //      instead of hard-truncating the tail (which silently loses conclusions).
+//
+// (Replayed history only exists on the Codex path and the Claude path right
+// after a backend switch — i.e. when there is no server-side session to reuse.)
 //
 // Everything here is pure and unit-tested (test/context.test.js) so the
 // budgeting logic is verifiable without a model.

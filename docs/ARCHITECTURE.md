@@ -65,19 +65,35 @@ The extension upholds the same promise on the page: the content script only
 reads the DOM, and citation highlighting uses the browser's native
 `window.find` (a transient selection), never DOM mutation.
 
-## Context management (`context.js`)
+## Context budgeting (`context.js`)
 
-The Codex path (and the Claude path right after a backend switch) splices the
-whole conversation + page into one prompt, which would grow unbounded. askd
-keeps it within a token budget the way an agent main loop does:
+This is **client-side input budgeting**, not a re-implementation of the agent
+loop's context compaction — the two are complementary and operate on different
+things:
 
-- **Token estimation** — the standard chars/4 heuristic.
-- **`clipToTokens('middle')`** — a long document keeps its **head and tail**,
-  dropping only the middle, instead of head-truncation that silently loses the
-  conclusion.
-- **`compactConversation`** — keeps the most recent turns verbatim and collapses
-  older ones into an `[N earlier turns omitted]` marker, always preserving a
-  recent window even if it exceeds budget.
+- The **Agent SDK manages the conversation loop**: history and tool results
+  across turns, microcompaction, overflow recovery. askd *reuses* this on the
+  Claude path (via `resume`, sending page context only once; normal turns pass
+  `history: []`).
+- But compaction shrinks what's *already in the window from earlier turns* — it
+  can't shrink the input askd injects into the **current** turn. So budgeting the
+  content askd itself adds is the client's responsibility:
+
+  - **Page text** — the content script can supply up to ~400 KB. The SDK can't
+    retroactively trim a single oversized user message; sending it raw just
+    overflows. `clipToTokens('middle')` keeps the document's **head and tail**,
+    dropping only the middle (head-truncation would silently lose the
+    conclusion).
+  - **Replayed history** — on the Codex path (no server-side session askd
+    reuses) and the Claude path right after a backend switch (no `resume` id
+    yet), askd splices prior turns into one prompt. `compactConversation` keeps
+    the recent turns verbatim and collapses older ones into an
+    `[N earlier turns omitted]` marker, always preserving a recent window.
+
+Token estimation uses the standard chars/4 heuristic. (The Codex history splice
+is also a consequence of an integration choice — askd assembles the transcript
+itself rather than reusing a native Codex session; reusing one would reduce how
+much history askd must budget.)
 
 ## Citations (`citations.js`)
 
