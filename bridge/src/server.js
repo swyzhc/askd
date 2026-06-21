@@ -61,10 +61,11 @@ function oneLine(text, max = 200) {
   return t.length > max ? t.slice(0, max) + '…' : t
 }
 
-function composeUserDisplay(message, quote) {
-  const q = quote ? `> ${oneLine(quote)}\n\n` : ''
-  const m = (message || '').trim() || (quote ? '(question about the selection)' : '')
-  return q + m
+function composeUserDisplay(message, quotes) {
+  const qs = (quotes || []).map((q) => `> ${oneLine(q)}`).join('\n')
+  const head = qs ? qs + '\n\n' : ''
+  const m = (message || '').trim() || (qs ? '(question about the selection)' : '')
+  return head + m
 }
 
 // --- route handlers ---
@@ -151,9 +152,15 @@ async function handleChat(req, res) {
   } catch (e) {
     return sendError(res, 400, 'bad_request', e.message)
   }
-  const { url, message, quote, pageTitle, pageContext, contextSource } = body
+  const { url, message, quote, quotes, pageTitle, pageContext, contextSource } = body
   if (!url) return sendError(res, 400, 'bad_request', 'url is required')
-  if ((!message || !message.trim()) && !quote) {
+  // Accept a quotes[] array (preferred) or a legacy single `quote` string.
+  const quoteList = Array.isArray(quotes)
+    ? quotes.filter((q) => typeof q === 'string' && q.trim())
+    : typeof quote === 'string' && quote.trim()
+      ? [quote]
+      : []
+  if ((!message || !message.trim()) && quoteList.length === 0) {
     return sendError(res, 400, 'bad_request', 'message or quote is required')
   }
 
@@ -175,14 +182,14 @@ async function handleChat(req, res) {
   })
 
   // Record the user's turn for display + Codex history splicing.
-  appendMessage(key, 'user', composeUserDisplay(message, quote))
+  appendMessage(key, 'user', composeUserDisplay(message, quoteList))
 
   let gen
   if (backend === 'codex') {
     const prompt = buildCodexPrompt({
       session,
       message,
-      quote,
+      quotes: quoteList,
       title: pageTitle,
       url,
       context: pageContext,
@@ -194,7 +201,7 @@ async function handleChat(req, res) {
     const includeContext = !session.claudeSessionId
     const prompt = buildClaudeTurn({
       message,
-      quote,
+      quotes: quoteList,
       title: pageTitle,
       url,
       context: pageContext,

@@ -288,6 +288,12 @@ button:disabled {
   padding: 8px 10px;
   background: var(--bg-soft);
 }
+.quote-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
 .quote-chip {
   display: flex;
   align-items: flex-start;
@@ -298,7 +304,6 @@ button:disabled {
   border-left: 3px solid var(--accent);
   border-radius: 6px;
   padding: 5px 8px;
-  margin-bottom: 6px;
   color: var(--fg-muted);
 }
 .quote-chip span {

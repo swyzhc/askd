@@ -24,9 +24,7 @@ const els = {
   banner: $('banner'),
   messages: $('messages'),
   composer: $('composer'),
-  quoteChip: $('quoteChip'),
-  quoteText: $('quoteText'),
-  clearQuote: $('clearQuote'),
+  quoteList: $('quoteList'),
   input: $('input'),
   sendBtn: $('sendBtn'),
   stopBtn: $('stopBtn'),
@@ -55,7 +53,7 @@ const state = {
   contextSource: 'dom',
   fetchCache: {},
   fetcherMatchers: [],
-  pendingQuote: '',
+  quotes: [],
   streaming: false,
   port: null,
   assistantEl: null,
@@ -448,15 +446,15 @@ function queueRender() {
 
 async function send() {
   const text = els.input.value.trim()
-  if ((!text && !state.pendingQuote) || state.streaming) return
+  if ((!text && state.quotes.length === 0) || state.streaming) return
   if (!state.page) {
     showBanner('No active page to ask about.', 'error')
     return
   }
   removeEmptyState()
 
-  const userContent =
-    (state.pendingQuote ? `> ${oneLine(state.pendingQuote)}\n\n` : '') + text
+  const quoteHead = state.quotes.map((q) => `> ${oneLine(q)}`).join('\n')
+  const userContent = (quoteHead ? quoteHead + '\n\n' : '') + text
   addMessageBubble('user', userContent)
 
   const a = addMessageBubble('assistant', '')
@@ -472,7 +470,7 @@ async function send() {
   const payload = {
     url: state.page.url,
     message: text,
-    quote: state.pendingQuote || undefined,
+    quotes: state.quotes.slice(),
     pageTitle: state.page.title,
     pageContext: contextForSend(),
     contextSource: state.contextSource,
@@ -480,7 +478,7 @@ async function send() {
 
   els.input.value = ''
   els.input.style.height = 'auto'
-  clearQuote()
+  clearQuotes()
   setStreaming(true)
 
   const port = chrome.runtime.connect({ name: 'askd-chat' })
@@ -568,24 +566,49 @@ function stop() {
   }
 }
 
-// ---------- quote chip ----------
-function showQuote(text) {
-  els.quoteText.textContent = oneLine(text, 240)
-  els.quoteChip.classList.remove('hidden')
+// ---------- quotes (multiple selections) ----------
+const MAX_QUOTES = 10
+function addQuote(text) {
+  const t = String(text || '').trim()
+  if (!t || state.quotes.includes(t) || state.quotes.length >= MAX_QUOTES) return
+  state.quotes.push(t)
+  renderQuotes()
 }
-function clearQuote() {
-  state.pendingQuote = ''
-  els.quoteText.textContent = ''
-  els.quoteChip.classList.add('hidden')
+function removeQuote(i) {
+  state.quotes.splice(i, 1)
+  renderQuotes()
+}
+function clearQuotes() {
+  state.quotes = []
+  renderQuotes()
+}
+function renderQuotes() {
+  els.quoteList.innerHTML = ''
+  if (state.quotes.length === 0) {
+    els.quoteList.classList.add('hidden')
+    return
+  }
+  els.quoteList.classList.remove('hidden')
+  state.quotes.forEach((q, i) => {
+    const chip = document.createElement('div')
+    chip.className = 'quote-chip'
+    const span = document.createElement('span')
+    span.textContent = oneLine(q, 240)
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.title = 'Remove quote'
+    btn.textContent = '×'
+    btn.addEventListener('click', () => removeQuote(i))
+    chip.appendChild(span)
+    chip.appendChild(btn)
+    els.quoteList.appendChild(chip)
+  })
 }
 async function captureSelection(tabId) {
   const id = tabId != null ? tabId : state.tabId
   if (id == null) return
   const sel = await getTabSelection(id)
-  if (sel) {
-    state.pendingQuote = sel
-    showQuote(sel)
-  }
+  if (sel) addQuote(sel)
 }
 async function checkPendingCapture() {
   try {
@@ -747,7 +770,6 @@ function wireEvents() {
     els.input.style.height = Math.min(els.input.scrollHeight, 140) + 'px'
   })
   els.stopBtn.addEventListener('click', stop)
-  els.clearQuote.addEventListener('click', clearQuote)
   els.newConvBtn.addEventListener('click', newConversation)
   els.backendSelect.addEventListener('change', quickSetBackend)
 

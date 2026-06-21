@@ -23,9 +23,14 @@ export function pageContextBlock({ title, url, context, contextSource }) {
   return `<page${attrs}>\n${clip(context, MAX_CONTEXT_CHARS)}\n</page>`
 }
 
-export function quoteBlock(quote) {
-  if (!quote) return ''
-  return `<selection>\n${clip(quote, MAX_QUOTE_CHARS)}\n</selection>`
+// Render one or more selected snippets, each as its own <selection> block so
+// the model can tell them apart.
+export function quotesBlock(quotes) {
+  if (!Array.isArray(quotes) || quotes.length === 0) return ''
+  return quotes
+    .filter((q) => typeof q === 'string' && q.trim())
+    .map((q) => `<selection>\n${clip(q, MAX_QUOTE_CHARS)}\n</selection>`)
+    .join('\n\n')
 }
 
 /**
@@ -34,7 +39,7 @@ export function quoteBlock(quote) {
  */
 export function buildClaudeTurn({
   message,
-  quote,
+  quotes,
   title,
   url,
   context,
@@ -46,7 +51,7 @@ export function buildClaudeTurn({
     const pc = pageContextBlock({ title, url, context, contextSource })
     if (pc) parts.push(pc)
   }
-  const qb = quoteBlock(quote)
+  const qb = quotesBlock(quotes)
   if (qb) parts.push(qb)
   parts.push(message || '')
   return parts.join('\n\n')
@@ -73,7 +78,7 @@ function codexPersona(hasCwd) {
 export function buildCodexPrompt({
   session,
   message,
-  quote,
+  quotes,
   title,
   url,
   context,
@@ -88,7 +93,7 @@ export function buildCodexPrompt({
       .join('\n\n')
     parts.push(`<conversation_so_far>\n${hist}\n</conversation_so_far>`)
   }
-  const qb = quoteBlock(quote)
+  const qb = quotesBlock(quotes)
   if (qb) parts.push(qb)
   parts.push(`User: ${message || ''}`)
   parts.push('Assistant:')

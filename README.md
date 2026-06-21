@@ -86,7 +86,7 @@ Open an article, type a question, press **Enter**.
 | Feature | How |
 |---|---|
 | **Ask about the current page** | Just type. askd extracts the main text (via Readability) as context. |
-| **Quote a selection** | Select text, press **⌘⇧L / Ctrl+Shift+L** — the panel opens with the selection attached. |
+| **Quote selections** | Select text and press **⌘⇧L / Ctrl+Shift+L** to attach it. Repeat to attach **multiple** selections; each chip has a × to remove it. |
 | **Site document fetcher** | If you configure a fetcher for a site, askd pulls clean Markdown via your CLI instead of scraping the DOM. On failure it falls back to the page's visible text and warns you. |
 | **Compare docs vs. local code** | Click the **`no local access`** badge → set a **local code directory (cwd)**. The assistant may then **read only that directory** (Read/Glob/Grep). |
 | **Per-page conversations** | Every page (by normalized URL) has its own thread. Different URLs never share a conversation. |
