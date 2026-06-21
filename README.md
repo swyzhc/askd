@@ -213,6 +213,7 @@ npm start
 bridge/      Node HTTP bridge (loopback, token-gated, read-only)
   src/adapters/{claude,codex}.js     # backends
   src/fetchers.js                    # generic, config-driven document fetchers
+  src/context.js                     # token budgeting + conversation compaction
   src/{safety,sessions,urlkey,prompt,http,config,capabilities,server}.js
   test/                              # node:test
   fetchers.example.json              # sample fetcher config (no real tool)

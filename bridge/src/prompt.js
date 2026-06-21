@@ -3,15 +3,12 @@
 // Claude keeps history server-side (resume), so we only attach the page context
 // on the first turn. Codex has no server-side memory, so we splice the whole
 // conversation into a single prompt each time.
-
-const MAX_CONTEXT_CHARS = 100_000
-const MAX_QUOTE_CHARS = 20_000
-
-function clip(text, max) {
-  if (!text) return ''
-  if (text.length <= max) return text
-  return text.slice(0, max) + `\n\n…[content truncated at ${max} characters]`
-}
+//
+// All size limits are token budgets enforced via ./context.js: the page keeps
+// its head AND tail (dropping only the middle), and replayed history is
+// compacted to keep recent turns verbatim while collapsing older ones — instead
+// of the naive head-truncation that silently dropped a long page's conclusion.
+import { clipToTokens, compactConversation, CONTEXT_BUDGET } from './context.js'
 
 export function pageContextBlock({ title, url, context, contextSource }) {
   if (!context) return ''
@@ -20,7 +17,8 @@ export function pageContextBlock({ title, url, context, contextSource }) {
     title ? ` title=${JSON.stringify(title)}` : '',
     url ? ` url=${JSON.stringify(url)}` : '',
   ].join('')
-  return `<page${attrs}>\n${clip(context, MAX_CONTEXT_CHARS)}\n</page>`
+  const body = clipToTokens(context, CONTEXT_BUDGET.page, { strategy: 'middle' })
+  return `<page${attrs}>\n${body}\n</page>`
 }
 
 // Render one or more selected snippets, each as its own <selection> block so
@@ -29,18 +27,18 @@ export function quotesBlock(quotes) {
   if (!Array.isArray(quotes) || quotes.length === 0) return ''
   return quotes
     .filter((q) => typeof q === 'string' && q.trim())
-    .map((q) => `<selection>\n${clip(q, MAX_QUOTE_CHARS)}\n</selection>`)
+    .map((q) => `<selection>\n${clipToTokens(q, CONTEXT_BUDGET.quote, { strategy: 'head' })}\n</selection>`)
     .join('\n\n')
 }
 
-// Replay prior turns as one block. Used wherever there's no server-side resume:
-// always for Codex, and for Claude's first turn after a backend switch.
+// Replay prior turns as one block, compacted to the history token budget. Used
+// wherever there's no server-side resume: always for Codex, and for Claude's
+// first turn after a backend switch.
 function historyBlock(messages) {
   if (!Array.isArray(messages) || messages.length === 0) return ''
-  const hist = messages
-    .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-    .join('\n\n')
-  return `<conversation_so_far>\n${hist}\n</conversation_so_far>`
+  const { text } = compactConversation(messages)
+  if (!text) return ''
+  return `<conversation_so_far>\n${text}\n</conversation_so_far>`
 }
 
 /**
