@@ -760,12 +760,14 @@ function wireEvents() {
     send()
   })
   els.input.addEventListener('keydown', (e) => {
-    // ⌘+Enter (mac) / Ctrl+Enter sends. Plain Enter inserts a newline, so typing
-    // — including IME confirmation — never fires the message off accidentally.
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault()
-      send()
-    }
+    if (e.key !== 'Enter') return
+    // Ignore Enter while an IME is composing — confirming a candidate word
+    // (e.g. Pinyin/Japanese) must not fire the message off. `isComposing` is the
+    // modern signal; keyCode 229 is the legacy sentinel for the same state.
+    if (e.isComposing || e.keyCode === 229) return
+    if (e.shiftKey) return // Shift+Enter = newline
+    e.preventDefault()
+    send()
   })
   els.input.addEventListener('input', () => {
     els.input.style.height = 'auto'
