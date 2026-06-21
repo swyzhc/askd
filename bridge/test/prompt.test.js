@@ -52,3 +52,17 @@ test('claude resume turn does not replay history', () => {
   assert.equal(count(noHist, 'NEW_QUESTION_X'), 1)
   assert.ok(!noHist.includes('<conversation_so_far>'))
 })
+
+test('claude turn flags re-included context as updated', () => {
+  const p = buildClaudeTurn({
+    message: 'NEW_QUESTION_X',
+    quotes: [],
+    includeContext: true,
+    contextUpdated: true,
+    context: 'fresh page body',
+    title: 'T',
+    url: 'https://x',
+  })
+  assert.ok(p.includes('changed since earlier'), 'notes the content changed')
+  assert.ok(p.includes('fresh page body'))
+})

@@ -54,6 +54,7 @@ const state = {
   fetchCache: {},
   fetcherMatchers: [],
   quotes: [],
+  lastSentContextByUrl: {},
   streaming: false,
   port: null,
   assistantEl: null,
@@ -359,6 +360,20 @@ function contextForSend() {
   return page.text || ''
 }
 
+// Re-extract the live DOM right before sending, so edits made after the panel
+// bound to the tab are seen. Fetcher pages keep their cached markdown (re-running
+// the fetch CLI on every message would be too slow).
+async function refreshPageSnapshot() {
+  if (!state.page || state.tabId == null) return
+  if (state.page.fetchedMarkdown) return
+  let fresh = await extractTab(state.tabId)
+  if (!fresh || !fresh.ok) fresh = await extractViaScripting(state.tabId)
+  if (fresh && fresh.ok && fresh.text) {
+    state.page.text = fresh.text
+    state.page.byReadability = fresh.byReadability
+  }
+}
+
 // ---------- session ----------
 async function loadSession() {
   if (!state.page) return
@@ -467,13 +482,21 @@ async function send() {
   a.wrap.insertBefore(trace, a.body)
   state.traceEl = trace
 
+  // Refresh the DOM snapshot so post-binding edits are seen, then flag whether
+  // the page changed since we last sent it (Claude re-embeds context on change).
+  await refreshPageSnapshot()
+  const pageContext = contextForSend()
+  const contextChanged = state.lastSentContextByUrl[state.page.url] !== pageContext
+  state.lastSentContextByUrl[state.page.url] = pageContext
+
   const payload = {
     url: state.page.url,
     message: text,
     quotes: state.quotes.slice(),
     pageTitle: state.page.title,
-    pageContext: contextForSend(),
+    pageContext,
     contextSource: state.contextSource,
+    contextChanged,
   }
 
   els.input.value = ''
@@ -609,6 +632,13 @@ async function captureSelection(tabId) {
   if (id == null) return
   const sel = await getTabSelection(id)
   if (sel) addQuote(sel)
+  // Move keyboard focus into the panel so the next keystroke (Enter / ⌘+Enter to
+  // send) goes to the chat, not back to the page.
+  try {
+    els.input.focus()
+  } catch {
+    /* ignore */
+  }
 }
 async function checkPendingCapture() {
   try {

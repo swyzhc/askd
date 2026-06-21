@@ -198,8 +198,10 @@ async function handleChat(req, res) {
   } else {
     // Claude keeps history via resume. With no resume id yet but prior turns
     // present (e.g. after a backend switch), replay them so Claude continues the
-    // thread too — symmetric with Codex. Page context goes only on the fresh turn.
+    // thread too — symmetric with Codex. Page context goes on the first turn, and
+    // again whenever the page changed since it was last sent.
     const fresh = !session.claudeSessionId
+    const contextChanged = body.contextChanged === true
     const prompt = buildClaudeTurn({
       message,
       quotes: quoteList,
@@ -207,7 +209,8 @@ async function handleChat(req, res) {
       url,
       context: pageContext,
       contextSource,
-      includeContext: fresh,
+      includeContext: fresh || contextChanged,
+      contextUpdated: !fresh && contextChanged,
       history: fresh ? session.messages : [],
     })
     gen = runClaude({ session, prompt, abortController })

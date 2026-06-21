@@ -55,12 +55,20 @@ export function buildClaudeTurn({
   context,
   contextSource,
   includeContext,
+  contextUpdated,
   history,
 }) {
   const parts = []
   if (includeContext) {
     const pc = pageContextBlock({ title, url, context, contextSource })
-    if (pc) parts.push(pc)
+    if (pc) {
+      if (contextUpdated) {
+        parts.push(
+          'The page content has changed since earlier in this conversation. Here is the current version:',
+        )
+      }
+      parts.push(pc)
+    }
   }
   // Replay earlier turns when resume isn't available yet (e.g. right after a
   // backend switch) so Claude picks up the thread; normal turns rely on resume.
