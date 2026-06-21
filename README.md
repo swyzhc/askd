@@ -77,7 +77,7 @@ running.
 
 ### 4 · Ask something
 
-Open an article, type a question, press **Enter**.
+Open an article, type a question, press **⌘+Enter** (or **Ctrl+Enter**).
 
 ---
 

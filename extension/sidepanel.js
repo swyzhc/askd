@@ -760,7 +760,9 @@ function wireEvents() {
     send()
   })
   els.input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // ⌘+Enter (mac) / Ctrl+Enter sends. Plain Enter inserts a newline, so typing
+    // — including IME confirmation — never fires the message off accidentally.
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       send()
     }
