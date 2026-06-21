@@ -11,9 +11,18 @@ import {
   pathFromToolInput,
 } from '../src/safety.js'
 
-test('write and shell tools are always forbidden', () => {
+test('write and shell tools are never in the allow-list', () => {
+  // The real guarantee: regardless of FORBIDDEN_TOOLS contents, no write/shell
+  // tool (incl. the removed MultiEdit) is ever allowed, with or without a cwd.
   for (const t of ['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Bash']) {
-    assert.ok(FORBIDDEN_TOOLS.includes(t), `${t} must be forbidden`)
+    assert.ok(!allowedToolsFor(true).includes(t), `${t} must not be allowed (cwd set)`)
+    assert.ok(!allowedToolsFor(false).includes(t), `${t} must not be allowed (no cwd)`)
+  }
+})
+
+test('the explicit deny list contains the current write/shell tools', () => {
+  for (const t of ['Edit', 'Write', 'NotebookEdit', 'Bash']) {
+    assert.ok(FORBIDDEN_TOOLS.includes(t), `${t} should be explicitly denied`)
   }
 })
 

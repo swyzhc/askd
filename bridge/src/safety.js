@@ -7,12 +7,18 @@
 import { existsSync, statSync } from 'node:fs'
 import { isAbsolute, resolve, sep } from 'node:path'
 
-// Never available, in any mode. Writing files or running shells is out of scope
-// for v1 — askd only reads.
+// Real write/shell tools, disabled explicitly as defense-in-depth.
+//
+// Note: `MultiEdit` is intentionally NOT listed. It was removed from Claude Code
+// (Edit now handles multiple edits), so passing it to the SDK's disallowedTools
+// emits a "deny rule matches no known tool" warning and protects nothing. The
+// true guarantee is the allow-list (allowedToolsFor) plus canUseTool's
+// default-deny: only Read/Glob/Grep/WebFetch/WebSearch are ever permitted, so
+// any non-read tool — including any future write tool, whatever its name — is
+// blocked regardless of whether it appears here.
 export const FORBIDDEN_TOOLS = Object.freeze([
   'Edit',
   'Write',
-  'MultiEdit',
   'NotebookEdit',
   'Bash',
 ])

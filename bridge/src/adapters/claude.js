@@ -3,8 +3,8 @@
 // Security posture (enforced three independent ways):
 //   1. `tools`           — the base set only contains the read-only tools we
 //                          want, so write/shell tools never exist in context.
-//   2. allow/disallow    — explicit allow-list plus an explicit disallow-list
-//                          that always bans Edit/Write/MultiEdit/NotebookEdit/Bash.
+//   2. allow/disallow    — explicit allow-list plus a disallow-list of the
+//                          write/shell tools (Edit/Write/NotebookEdit/Bash).
 //   3. canUseTool        — a runtime gate that denies anything off-policy and
 //                          confines Read/Glob/Grep to the session's cwd.
 //

@@ -141,7 +141,8 @@ can't widen it.
   CLIs do talk to their clouds — see **Data flow & your responsibility** above.)
 - **Claude tool gating** (three layers — `bridge/src/safety.js`,
   `adapters/claude.js`):
-  - Always disabled: `Edit`, `Write`, `MultiEdit`, `NotebookEdit`, `Bash`.
+  - Always disabled: `Edit`, `Write`, `NotebookEdit`, `Bash` — and in fact *any*
+    non-read tool, since the allow-list only ever permits the five read-only ones.
   - Allowed (read-only): `Read`, `Glob`, `Grep`, `WebFetch`, `WebSearch`.
   - **No cwd** ⇒ file tools removed entirely + subprocess runs in an empty dir, so
     it has zero local file access and can't fall back to the bridge's own cwd.
