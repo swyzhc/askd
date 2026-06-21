@@ -122,7 +122,13 @@ export async function* runClaude({ session, prompt, abortController }) {
     tools: allowedToolsFor(hasCwd),
     allowedTools: allowedToolsFor(hasCwd),
     disallowedTools: disallowedToolsFor(hasCwd),
-    settingSources: [], // do NOT load filesystem CLAUDE.md / settings / project rules
+    // Load ONLY user-level settings (~/.claude/settings.json) so auth helpers
+    // like `apiKeyHelper` (common in corporate setups) are picked up — with `[]`
+    // (full isolation) those users get "Not logged in" even though `claude` works
+    // in a terminal. 'project'/'local' stay excluded, so no repo CLAUDE.md or
+    // project rules leak into the assistant. (Tool gating is unaffected: the
+    // read-only allow-list + canUseTool default-deny still cap everything.)
+    settingSources: ['user'],
     includePartialMessages: true,
     canUseTool: buildCanUseTool(session),
     permissionMode: 'default',
