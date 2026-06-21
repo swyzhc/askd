@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.DS_Store
+# local bridge state (token + sessions) lives in ~/.askd, never in the repo
+# real document-fetcher config may reference internal tools — keep it out of the repo
+bridge/fetchers.json
+fetchers.json

@@ -1,0 +1,9 @@
+[
+  {
+    "name": "example-docs",
+    "hosts": ["(^|\\.)docs\\.example\\.com$"],
+    "command": "your-doc-cli",
+    "args": ["fetch", "--url", "{url}", "--format", "markdown"],
+    "timeoutMs": 30000
+  }
+]

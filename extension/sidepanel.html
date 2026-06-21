@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="sidepanel.css" />
+    <title>askd</title>
+  </head>
+  <body>
+    <header id="topbar">
+      <span class="brand">askd</span>
+      <span class="spacer"></span>
+      <button id="newConvBtn" class="icon-btn" title="New conversation">＋&nbsp;New</button>
+      <button id="sessionsBtn" class="icon-btn" title="Sessions">Sessions</button>
+      <button id="settingsBtn" class="icon-btn" title="Settings">⚙</button>
+    </header>
+
+    <section id="pagebar">
+      <div id="pageTitle" class="page-title" title="">No page</div>
+      <div class="controls">
+        <label class="ctl"
+          >Backend
+          <select id="backendSelect">
+            <option value="claude">Claude</option>
+            <option value="codex">Codex (experimental)</option>
+          </select>
+        </label>
+        <button id="cwdBadge" class="badge badge-muted" title="Set a local code directory">
+          no local access
+        </button>
+      </div>
+    </section>
+
+    <div id="banner" class="banner hidden"></div>
+
+    <main id="messages" class="messages">
+      <div id="emptyState" class="empty">
+        Ask anything about the current page. askd reads it and answers using your
+        local Claude Code or Codex — read-only.
+      </div>
+    </main>
+
+    <form id="composer">
+      <div id="quoteChip" class="quote-chip hidden">
+        <span id="quoteText"></span>
+        <button type="button" id="clearQuote" title="Remove quote">×</button>
+      </div>
+      <div class="composer-row">
+        <textarea
+          id="input"
+          rows="2"
+          placeholder="Ask about this page…  (Enter to send, Shift+Enter for newline)"
+        ></textarea>
+        <div class="composer-actions">
+          <button id="sendBtn" type="submit">Send</button>
+          <button id="stopBtn" type="button" class="hidden danger">Stop</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Settings drawer -->
+    <div id="settingsDrawer" class="drawer hidden">
+      <div class="drawer-head">
+        <h2>Settings</h2>
+        <button id="closeSettings" class="link" type="button">Close</button>
+      </div>
+
+      <p class="hint">
+        Content you ask about — page text, fetched docs, and any local code the
+        agent reads — is sent to your chosen backend's cloud (Anthropic / OpenAI)
+        for inference. Respect your organization's data rules; askd doesn't
+        enforce them.
+      </p>
+
+      <h3>Bridge</h3>
+      <label class="field"
+        >Bridge URL
+        <input id="bridgeUrl" type="text" placeholder="http://127.0.0.1:8765" />
+      </label>
+      <label class="field"
+        >Token
+        <input id="token" type="password" placeholder="paste the token printed by the bridge" />
+      </label>
+      <div class="drawer-actions">
+        <button id="testBtn" type="button">Test connection</button>
+        <button id="saveSettingsBtn" type="button" class="primary">Save</button>
+      </div>
+      <div id="settingsStatus" class="status"></div>
+
+      <hr />
+
+      <h3>This page</h3>
+      <label class="field"
+        >Local code directory (cwd)
+        <input id="cwdInput" type="text" placeholder="/absolute/path — empty = no local access" />
+      </label>
+      <p class="hint">
+        When set, the assistant may read <em>only</em> this directory. When empty,
+        it has no local file access.
+      </p>
+      <label class="field"
+        >Model (optional)
+        <input id="modelInput" type="text" placeholder="default" />
+      </label>
+      <div class="drawer-actions">
+        <button id="saveSessionBtn" type="button" class="primary">Apply to this page</button>
+      </div>
+      <div id="sessionStatus" class="status"></div>
+    </div>
+
+    <!-- Sessions drawer -->
+    <div id="sessionsDrawer" class="drawer hidden">
+      <div class="drawer-head">
+        <h2>Sessions</h2>
+        <button id="closeSessions" class="link" type="button">Close</button>
+      </div>
+      <p class="hint">Each page has its own conversation. Open one in a new tab to continue it.</p>
+      <div id="sessionsList" class="sessions-list"></div>
+    </div>
+
+    <script src="vendor/marked.min.js"></script>
+    <script src="vendor/purify.min.js"></script>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
