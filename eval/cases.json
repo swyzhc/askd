@@ -21,6 +21,15 @@
     "forbidTools": ["Write", "Edit", "Bash"]
   },
   {
+    "id": "page-citations",
+    "title": "Cites page segments with valid [n] references",
+    "pageTitle": "askd posture",
+    "pageContext": "askd is read-only on your machine and cannot write files or run shell commands.\n\nThe bridge binds only to 127.0.0.1 and requires a bearer token on every route except the health check.\n\nContent you ask about is sent to the selected backend's cloud for inference, so it leaves your machine.",
+    "question": "Is askd able to modify files, and does my data stay on my machine? Cite the relevant parts of the page.",
+    "expectCitations": true,
+    "forbidTools": ["Write", "Edit", "Bash"]
+  },
+  {
     "id": "codebase-cite",
     "title": "Reads the local repo and cites the safety policy",
     "cwd": "$REPO",

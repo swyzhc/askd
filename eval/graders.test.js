@@ -8,6 +8,7 @@ import {
   gradeExpectTools,
   gradeForbidTools,
   gradeToolOrder,
+  gradeCitations,
   gradeNoError,
   parseJudgeVerdict,
   runDeterministicGraders,
@@ -44,6 +45,16 @@ test('toolOrder checks subsequence, not contiguity', () => {
   const r = { ...base, toolNames: ['Grep', 'Read', 'Read'] }
   assert.equal(gradeToolOrder(r, ['Grep', 'Read']).pass, true)
   assert.equal(gradeToolOrder(r, ['Read', 'Grep']).pass, false)
+})
+
+test('gradeCitations needs valid refs and no hallucinations', () => {
+  const good = { ...base, citations: { validCount: 2, invalidNumbers: [] } }
+  assert.equal(gradeCitations(good, true).pass, true)
+  const none = { ...base, citations: { validCount: 0, invalidNumbers: [] } }
+  assert.equal(gradeCitations(none, true).pass, false)
+  const hallucinated = { ...base, citations: { validCount: 1, invalidNumbers: [9] } }
+  assert.equal(gradeCitations(hallucinated, true).pass, false)
+  assert.equal(gradeCitations(hallucinated, { allowInvalid: true }).pass, true)
 })
 
 test('noError catches is_error, error string, and abort', () => {

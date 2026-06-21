@@ -6,6 +6,7 @@
 // collect the streamed events into a RunResult the graders can score.
 import { runClaude } from '../bridge/src/adapters/claude.js'
 import { buildClaudeTurn } from '../bridge/src/prompt.js'
+import { verifyCitations } from '../bridge/src/citations.js'
 
 /**
  * @param {object} spec  one case from cases.json (cwd already resolved/null)
@@ -18,7 +19,7 @@ export async function runCase(spec) {
     claudeSessionId: null, // each case is a fresh conversation
   }
 
-  const prompt = buildClaudeTurn({
+  const { prompt, segments } = buildClaudeTurn({
     message: spec.question,
     quotes: spec.quotes || [],
     title: spec.pageTitle || null,
@@ -44,6 +45,7 @@ export async function runCase(spec) {
     costUsd: null,
     durationMs: null,
     numTurns: null,
+    citations: null,
   }
 
   try {
@@ -72,5 +74,7 @@ export async function runCase(spec) {
     clearTimeout(timer)
   }
 
+  // Resolve and validate the answer's [n] citations against the page segments.
+  result.citations = verifyCitations(result.answer, segments)
   return result
 }

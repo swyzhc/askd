@@ -31,6 +31,7 @@ function systemPrompt(hasCwd) {
     'You help the user read, explain, summarize, and answer questions about the web page or document they are viewing, and compare it against their local code when a directory is available.',
     'You are strictly read-only: you cannot edit or write files, run shell commands, or operate the web page. Never claim to have changed anything.',
     'Answer in GitHub-flavored Markdown. Be concise and concrete. When you reference code, cite file paths and line numbers.',
+    'The page content is split into numbered segments like [1], [2]. When a statement is grounded in the page, cite the segment(s) it comes from using their bracketed numbers, e.g. [3]. Only cite numbers that actually appear in the page; do not cite for general knowledge or for facts you read from local code.',
   ]
   base.push(
     hasCwd

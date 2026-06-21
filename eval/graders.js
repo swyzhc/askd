@@ -93,6 +93,23 @@ export function gradeToolOrder(result, order) {
   }
 }
 
+/**
+ * The answer must cite the page with valid [n] references. `spec` may be `true`
+ * (require ≥1 valid citation and zero hallucinated ones) or `{ min, allowInvalid }`.
+ */
+export function gradeCitations(result, spec) {
+  const opt = spec === true ? {} : spec || {}
+  const min = opt.min ?? 1
+  const c = result.citations || { validCount: 0, invalidNumbers: [] }
+  const enoughValid = c.validCount >= min
+  const cleanRefs = opt.allowInvalid ? true : c.invalidNumbers.length === 0
+  return {
+    name: 'citations',
+    pass: enoughValid && cleanRefs,
+    detail: `valid=${c.validCount} (need ≥${min}), hallucinated=${JSON.stringify(c.invalidNumbers)}`,
+  }
+}
+
 /** The run must not have errored (default expectation for every case). */
 export function gradeNoError(result) {
   const bad = Boolean(result.isError || result.error || result.aborted)
@@ -136,6 +153,7 @@ export function runDeterministicGraders(result, spec) {
   if (spec.expectTools != null) out.push(gradeExpectTools(result, spec.expectTools))
   if (spec.forbidTools != null) out.push(gradeForbidTools(result, spec.forbidTools))
   if (spec.expectToolOrder != null) out.push(gradeToolOrder(result, spec.expectToolOrder))
+  if (spec.expectCitations != null) out.push(gradeCitations(result, spec.expectCitations))
   return out
 }
 

@@ -91,6 +91,7 @@ Open an article, type a question, press **Enter** (Shift+Enter for a newline).
 | **Compare docs vs. local code** | Click the **`no local access`** badge → set a **local code directory (cwd)**. The assistant may then **read only that directory** (Read/Glob/Grep). |
 | **Per-page conversations** | Every page (by normalized URL) has its own thread. Different URLs never share a conversation. |
 | **New conversation / Stop / backend switch** | **＋ New** clears the thread; **Stop** aborts streaming; pick **Claude** or **Codex** per page. |
+| **Citations** | The page is split into numbered segments; the model cites claims with `[n]`. The bridge verifies each `[n]` against the page (and flags any it invented), and the panel renders them as clickable footnotes — click one to scroll to and highlight the source passage. |
 
 Answers render as Markdown — code blocks, lists, tables, inline code.
 
@@ -214,6 +215,7 @@ bridge/      Node HTTP bridge (loopback, token-gated, read-only)
   src/adapters/{claude,codex}.js     # backends
   src/fetchers.js                    # generic, config-driven document fetchers
   src/context.js                     # token budgeting + conversation compaction
+  src/citations.js                   # page segmentation + [n] citation verification
   src/{safety,sessions,urlkey,prompt,http,config,capabilities,server}.js
   test/                              # node:test
   fetchers.example.json              # sample fetcher config (no real tool)

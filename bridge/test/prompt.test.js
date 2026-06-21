@@ -10,7 +10,7 @@ const PRIOR = [
 const count = (hay, needle) => hay.split(needle).length - 1
 
 test('codex prompt replays prior turns and includes the new question exactly once', () => {
-  const p = buildCodexPrompt({
+  const { prompt: p } = buildCodexPrompt({
     session: { cwd: null, messages: PRIOR },
     message: 'NEW_QUESTION_X',
     quotes: [],
@@ -21,7 +21,7 @@ test('codex prompt replays prior turns and includes the new question exactly onc
 })
 
 test('codex prompt with no prior history has no conversation block and one question', () => {
-  const p = buildCodexPrompt({
+  const { prompt: p } = buildCodexPrompt({
     session: { cwd: null, messages: [] },
     message: 'NEW_QUESTION_X',
     quotes: [],
@@ -31,7 +31,7 @@ test('codex prompt with no prior history has no conversation block and one quest
 })
 
 test('claude turn replays history only when given (post-backend-switch)', () => {
-  const withHist = buildClaudeTurn({
+  const { prompt: withHist } = buildClaudeTurn({
     message: 'NEW_QUESTION_X',
     quotes: [],
     includeContext: true,
@@ -43,7 +43,7 @@ test('claude turn replays history only when given (post-backend-switch)', () => 
 })
 
 test('claude resume turn does not replay history', () => {
-  const noHist = buildClaudeTurn({
+  const { prompt: noHist } = buildClaudeTurn({
     message: 'NEW_QUESTION_X',
     quotes: [],
     includeContext: false,
@@ -54,7 +54,7 @@ test('claude resume turn does not replay history', () => {
 })
 
 test('claude turn flags re-included context as updated', () => {
-  const p = buildClaudeTurn({
+  const { prompt: p } = buildClaudeTurn({
     message: 'NEW_QUESTION_X',
     quotes: [],
     includeContext: true,
@@ -65,4 +65,30 @@ test('claude turn flags re-included context as updated', () => {
   })
   assert.ok(p.includes('changed since earlier'), 'notes the content changed')
   assert.ok(p.includes('fresh page body'))
+})
+
+test('a turn carrying the page returns a numbered citation segment map', () => {
+  const { prompt: p, segments } = buildClaudeTurn({
+    message: 'q',
+    quotes: [],
+    includeContext: true,
+    history: [],
+    context: 'First paragraph about loopback.\n\nSecond paragraph about tokens.',
+    title: 'T',
+    url: 'https://x',
+  })
+  assert.equal(segments.length, 2)
+  assert.equal(segments[0].n, 1)
+  assert.ok(p.includes('[1] First paragraph'), 'page text is numbered in the prompt')
+  assert.ok(p.includes('[2] Second paragraph'))
+})
+
+test('a resume turn (no page) returns no segments', () => {
+  const { segments } = buildClaudeTurn({
+    message: 'q',
+    quotes: [],
+    includeContext: false,
+    history: [],
+  })
+  assert.deepEqual(segments, [])
 })

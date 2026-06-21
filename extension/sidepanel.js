@@ -62,6 +62,7 @@ const state = {
   traceEl: null,
   assistantRaw: '',
   renderQueued: false,
+  citations: null, // { used: [{n, valid, text}], invalidNumbers: [] } for the current answer
 }
 
 // ---------- bridge proxy (via background) ----------
@@ -476,6 +477,7 @@ async function send() {
   state.assistantWrap = a.wrap
   state.assistantEl = a.body
   state.assistantRaw = ''
+  state.citations = null
   a.body.classList.add('cursor-blink')
   const trace = document.createElement('div')
   trace.className = 'tool-trace hidden'
@@ -528,6 +530,9 @@ function onChatEvent(event, data) {
       state.assistantRaw += data.text || ''
       queueRender()
       break
+    case 'citations':
+      state.citations = data || null
+      break
     case 'done':
       if (data && typeof data.text === 'string' && data.text) state.assistantRaw = data.text
       finalizeStream({ isError: !!(data && data.isError) })
@@ -547,10 +552,77 @@ function finalizeStream({ isError = false, aborted = false } = {}) {
     let raw = state.assistantRaw
     if (aborted) raw += (raw ? '\n\n' : '') + '_(stopped)_'
     state.assistantEl.innerHTML = renderMarkdown(raw || '_(no output)_')
+    if (!isError && state.citations) decorateCitations(state.assistantEl, state.citations)
     if (isError && state.assistantWrap) state.assistantWrap.classList.add('error-msg')
   }
   teardownStream()
   scrollToBottom()
+}
+
+// Turn the answer's [n] references into clickable footnotes. Walks text nodes
+// (skipping code/links) so we never corrupt the rendered markup, and resolves
+// each number against the verified citation map from the bridge. Clicking a
+// verified citation asks the content script to scroll to and highlight the
+// source passage on the page.
+function decorateCitations(root, citations) {
+  const byNum = new Map((citations.used || []).map((u) => [u.n, u]))
+  if (byNum.size === 0) return
+  const skip = new Set(['CODE', 'PRE', 'A'])
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      let p = node.parentElement
+      while (p && p !== root) {
+        if (skip.has(p.tagName)) return NodeFilter.FILTER_REJECT
+        p = p.parentElement
+      }
+      return /\[\d+\]/.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP
+    },
+  })
+  const targets = []
+  while (walker.nextNode()) targets.push(walker.currentNode)
+
+  for (const node of targets) {
+    const frag = document.createDocumentFragment()
+    let last = 0
+    const re = /\[(\d+)\]/g
+    let m
+    while ((m = re.exec(node.nodeValue)) !== null) {
+      const n = Number(m[1])
+      const cite = byNum.get(n)
+      if (!cite) continue // a bracketed number we didn't track — leave as text
+      if (m.index > last) frag.appendChild(document.createTextNode(node.nodeValue.slice(last, m.index)))
+      frag.appendChild(makeCiteEl(n, cite))
+      last = m.index + m[0].length
+    }
+    if (last === 0) continue
+    if (last < node.nodeValue.length) frag.appendChild(document.createTextNode(node.nodeValue.slice(last)))
+    node.parentNode.replaceChild(frag, node)
+  }
+}
+
+function makeCiteEl(n, cite) {
+  const sup = document.createElement('sup')
+  sup.className = 'cite' + (cite.valid ? '' : ' cite-invalid')
+  sup.textContent = `[${n}]`
+  if (cite.valid) {
+    sup.title = oneLine(cite.text, 160)
+    sup.addEventListener('click', () => highlightOnPage(cite.text))
+  } else {
+    sup.title = 'This citation was not found in the page.'
+  }
+  return sup
+}
+
+// Ask the content script to scroll to and (transiently) select the cited text.
+// Uses the browser's native find — no DOM mutation, honouring askd's read-only
+// promise on the page.
+function highlightOnPage(text) {
+  if (state.tabId == null || !text) return
+  try {
+    chrome.tabs.sendMessage(state.tabId, { cmd: 'highlight', text }, () => void chrome.runtime.lastError)
+  } catch {
+    /* tab gone */
+  }
 }
 
 function streamError(data) {

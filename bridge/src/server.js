@@ -25,9 +25,11 @@ import {
   updateSession,
   appendMessage,
   setClaudeSessionId,
+  setPageSegments,
   newConversation,
   listSessions,
 } from './sessions.js'
+import { verifyCitations } from './citations.js'
 import { validateCwd } from './safety.js'
 import { capabilities } from './capabilities.js'
 import {
@@ -182,10 +184,11 @@ async function handleChat(req, res) {
   })
 
   let gen
+  let segments = []
   if (backend === 'codex') {
     // session.messages holds only PRIOR turns here (the new one is appended after
     // the prompt is built), so Codex's history splice doesn't duplicate it.
-    const prompt = buildCodexPrompt({
+    const built = buildCodexPrompt({
       session,
       message,
       quotes: quoteList,
@@ -194,7 +197,8 @@ async function handleChat(req, res) {
       context: pageContext,
       contextSource,
     })
-    gen = runCodex({ session, prompt, abortController })
+    segments = built.segments
+    gen = runCodex({ session, prompt: built.prompt, abortController })
   } else {
     // Claude keeps history via resume. With no resume id yet but prior turns
     // present (e.g. after a backend switch), replay them so Claude continues the
@@ -202,7 +206,7 @@ async function handleChat(req, res) {
     // again whenever the page changed since it was last sent.
     const fresh = !session.claudeSessionId
     const contextChanged = body.contextChanged === true
-    const prompt = buildClaudeTurn({
+    const built = buildClaudeTurn({
       message,
       quotes: quoteList,
       title: pageTitle,
@@ -213,8 +217,15 @@ async function handleChat(req, res) {
       contextUpdated: !fresh && contextChanged,
       history: fresh ? session.messages : [],
     })
-    gen = runClaude({ session, prompt, abortController })
+    segments = built.segments
+    gen = runClaude({ session, prompt: built.prompt, abortController })
   }
+
+  // Persist the page's citation segment map when this turn carried the page, so
+  // later resume turns (which don't re-send it) can still resolve [n] refs.
+  if (segments.length) setPageSegments(key, segments)
+  // Verify the answer's citations against whichever map is current.
+  const citeSegments = segments.length ? segments : getSession(key)?.pageSegments || []
 
   // Record the user's turn AFTER building the prompt so the history splice above
   // reflects only prior turns (no duplicate of the current question), and persist
@@ -233,6 +244,12 @@ async function handleChat(req, res) {
         if (ev.sessionId) setClaudeSessionId(key, ev.sessionId)
         const finalText = ev.text || assistantText
         appendMessage(key, 'assistant', finalText)
+        // Resolve and verify [n] citations so the panel can render them as
+        // clickable footnotes and flag any number the model invented.
+        if (citeSegments.length) {
+          const { used, invalidNumbers } = verifyCitations(finalText, citeSegments)
+          if (used.length) sseSend(res, 'citations', { used, invalidNumbers })
+        }
         sseSend(res, 'done', {
           text: finalText,
           isError: Boolean(ev.isError),

@@ -9,16 +9,25 @@
 // compacted to keep recent turns verbatim while collapsing older ones — instead
 // of the naive head-truncation that silently dropped a long page's conclusion.
 import { clipToTokens, compactConversation, CONTEXT_BUDGET } from './context.js'
+import { segmentPage } from './citations.js'
 
+/**
+ * Build the <page> block. The page is clipped to the token budget, then split
+ * into numbered [1]/[2]/… segments the model is asked to cite. Returns both the
+ * block (for the prompt) and the segment map (so the bridge can verify the
+ * answer's citations and the UI can resolve [n] back to the source passage).
+ * @returns {{ block: string, segments: Array<{ n: number, text: string }> }}
+ */
 export function pageContextBlock({ title, url, context, contextSource }) {
-  if (!context) return ''
+  if (!context) return { block: '', segments: [] }
   const attrs = [
     contextSource ? ` source=${JSON.stringify(contextSource)}` : '',
     title ? ` title=${JSON.stringify(title)}` : '',
     url ? ` url=${JSON.stringify(url)}` : '',
   ].join('')
-  const body = clipToTokens(context, CONTEXT_BUDGET.page, { strategy: 'middle' })
-  return `<page${attrs}>\n${body}\n</page>`
+  const clipped = clipToTokens(context, CONTEXT_BUDGET.page, { strategy: 'middle' })
+  const { numbered, segments } = segmentPage(clipped)
+  return { block: `<page${attrs}>\n${numbered}\n</page>`, segments }
 }
 
 // Render one or more selected snippets, each as its own <selection> block so
@@ -44,6 +53,9 @@ function historyBlock(messages) {
 /**
  * One user turn for Claude. Page context is included only on the first turn of
  * a conversation (when there's no resume id yet); later turns rely on resume.
+ * @returns {{ prompt: string, segments: Array<{ n: number, text: string }> }}
+ *   segments is the page's citation map for the turn that carried the page
+ *   (empty on resume turns that re-use the server-side context).
  */
 export function buildClaudeTurn({
   message,
@@ -57,15 +69,17 @@ export function buildClaudeTurn({
   history,
 }) {
   const parts = []
+  let segments = []
   if (includeContext) {
     const pc = pageContextBlock({ title, url, context, contextSource })
-    if (pc) {
+    if (pc.block) {
       if (contextUpdated) {
         parts.push(
           'The page content has changed since earlier in this conversation. Here is the current version:',
         )
       }
-      parts.push(pc)
+      parts.push(pc.block)
+      segments = pc.segments
     }
   }
   // Replay earlier turns when resume isn't available yet (e.g. right after a
@@ -75,7 +89,7 @@ export function buildClaudeTurn({
   const qb = quotesBlock(quotes)
   if (qb) parts.push(qb)
   parts.push(message || '')
-  return parts.join('\n\n')
+  return { prompt: parts.join('\n\n'), segments }
 }
 
 function codexPersona(hasCwd) {
@@ -83,6 +97,7 @@ function codexPersona(hasCwd) {
     'You are askd, a strictly read-only reading assistant embedded in a browser side panel.',
     'Help the user read, explain, summarize, and answer questions about the page/document below.',
     'Do not modify files or the page. Answer in GitHub-flavored Markdown, concisely.',
+    'The page is split into numbered segments like [1], [2]. When a statement comes from the page, cite the segment(s) it is grounded in using their bracketed numbers, e.g. [3]. Only cite numbers that appear in the page; do not cite for general knowledge.',
   ]
   base.push(
     hasCwd
@@ -95,6 +110,7 @@ function codexPersona(hasCwd) {
 /**
  * Codex has no server-side memory, so splice persona + page context + prior
  * turns + the new question into a single prompt.
+ * @returns {{ prompt: string, segments: Array<{ n: number, text: string }> }}
  */
 export function buildCodexPrompt({
   session,
@@ -107,12 +123,12 @@ export function buildCodexPrompt({
 }) {
   const parts = [codexPersona(Boolean(session.cwd))]
   const pc = pageContextBlock({ title, url, context, contextSource })
-  if (pc) parts.push(pc)
+  if (pc.block) parts.push(pc.block)
   const hb = historyBlock(session.messages)
   if (hb) parts.push(hb)
   const qb = quotesBlock(quotes)
   if (qb) parts.push(qb)
   parts.push(`User: ${message || ''}`)
   parts.push('Assistant:')
-  return parts.join('\n\n')
+  return { prompt: parts.join('\n\n'), segments: pc.segments }
 }

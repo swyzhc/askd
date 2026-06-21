@@ -439,3 +439,23 @@ hr {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------- citation footnotes ---------- */
+.md .cite {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.72em;
+  padding: 0 1px;
+  vertical-align: super;
+  line-height: 0;
+  text-decoration: none;
+}
+.md .cite:hover {
+  text-decoration: underline;
+}
+.md .cite-invalid {
+  cursor: help;
+  color: var(--fg-muted);
+  text-decoration: line-through;
+}

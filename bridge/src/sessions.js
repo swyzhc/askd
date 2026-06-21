@@ -66,6 +66,7 @@ function freshSession(key, seed = {}) {
     model: seed.model || null,
     claudeSessionId: null, // native session id for Claude resume
     messages: [], // [{ role, content, ts }]
+    pageSegments: [], // numbered page segments, kept for citation verification
     createdAt: now(),
     updatedAt: now(),
   }
@@ -153,6 +154,19 @@ export function setClaudeSessionId(key, id) {
 }
 
 /**
+ * Persist the page's citation segment map. Kept so later resume turns (which
+ * don't re-send the page) can still resolve and verify the answer's [n] refs.
+ */
+export function setPageSegments(key, segments) {
+  load()
+  const s = store.sessions[key]
+  if (!s) return
+  s.pageSegments = Array.isArray(segments) ? segments : []
+  s.updatedAt = now()
+  persist()
+}
+
+/**
  * Start a new conversation for a page: clear history and the native session id
  * but keep the backend / cwd / model settings.
  */
@@ -162,6 +176,7 @@ export function newConversation(key) {
   if (!s) return undefined
   s.messages = []
   s.claudeSessionId = null
+  s.pageSegments = []
   s.updatedAt = now()
   persist()
   return s

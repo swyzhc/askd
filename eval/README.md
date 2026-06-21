@@ -44,6 +44,7 @@ pure function in [`graders.js`](./graders.js) and is unit-tested in
 | `expectTools`          | expectTools     | Each tool was called at least once |
 | `forbidTools`          | forbidTools     | None of these tools may be called (security) |
 | `expectToolOrder`      | toolOrder       | Tools appear as an ordered subsequence |
+| `expectCitations`      | citations       | Answer has ≥1 valid `[n]` citation and no hallucinated ones |
 | `judge: { rubric }`    | judge (LLM)     | Open-ended quality, graded PASS/FAIL by the model |
 
 A case passes iff **every** grader passes. `noError` is added automatically.
