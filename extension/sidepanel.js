@@ -63,6 +63,7 @@ const state = {
   assistantRaw: '',
   renderQueued: false,
   citations: null, // { used: [{n, valid, text}], invalidNumbers: [] } for the current answer
+  finalized: false, // whether the current stream already reached a terminal state
 }
 
 // ---------- bridge proxy (via background) ----------
@@ -478,6 +479,7 @@ async function send() {
   state.assistantEl = a.body
   state.assistantRaw = ''
   state.citations = null
+  state.finalized = false
   a.body.classList.add('cursor-blink')
   const trace = document.createElement('div')
   trace.className = 'tool-trace hidden'
@@ -547,12 +549,25 @@ function onChatEvent(event, data) {
 }
 
 function finalizeStream({ isError = false, aborted = false } = {}) {
+  // Guard against double-finalize: a terminal event (done/error) and the
+  // subsequent port disconnect can both land here; only the first wins, so a
+  // clean completion is never overwritten with a spurious "(stopped)".
+  if (state.finalized) return
+  state.finalized = true
   if (state.assistantEl) {
     state.assistantEl.classList.remove('cursor-blink')
     let raw = state.assistantRaw
     if (aborted) raw += (raw ? '\n\n' : '') + '_(stopped)_'
     state.assistantEl.innerHTML = renderMarkdown(raw || '_(no output)_')
-    if (!isError && state.citations) decorateCitations(state.assistantEl, state.citations)
+    // Decoration must never break finalize — a throw here used to leave
+    // state.streaming stuck true, so the next port disconnect appended "(stopped)".
+    if (!isError && !aborted && state.citations) {
+      try {
+        decorateCitations(state.assistantEl, state.citations)
+      } catch {
+        /* leave the plain [n] text in place */
+      }
+    }
     if (isError && state.assistantWrap) state.assistantWrap.classList.add('error-msg')
   }
   teardownStream()
@@ -626,6 +641,7 @@ function highlightOnPage(text) {
 }
 
 function streamError(data) {
+  state.finalized = true
   const msg = friendlyError(data)
   if (state.assistantEl) {
     state.assistantEl.classList.remove('cursor-blink')
@@ -704,13 +720,25 @@ async function captureSelection(tabId) {
   if (id == null) return
   const sel = await getTabSelection(id)
   if (sel) addQuote(sel)
-  // Move keyboard focus into the panel so the next keystroke (Enter / ⌘+Enter to
-  // send) goes to the chat, not back to the page.
-  try {
-    els.input.focus()
-  } catch {
-    /* ignore */
+  focusInput()
+}
+
+// Best-effort: pull keyboard focus into the panel so the next keystroke (Enter /
+// ⌘+Enter to send) goes to the chat, not the page. When the page still owns
+// focus (the user just selected text there), a side panel can't always steal it
+// programmatically — so we first focus our own window, then the input, and retry
+// once on the next frame after the quote chip has rendered.
+function focusInput() {
+  const grab = () => {
+    try {
+      window.focus()
+      els.input.focus({ preventScroll: true })
+    } catch {
+      /* ignore */
+    }
   }
+  grab()
+  requestAnimationFrame(grab)
 }
 async function checkPendingCapture() {
   try {
