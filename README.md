@@ -17,28 +17,32 @@ and never operates the web page.
 └─────────────────────┘                     └──────────────────┘                     └──────────────┘
 ```
 
----
+<!-- TODO: drop a ~30s demo GIF/MP4 here (open panel → ask question → click [n] footnote → highlight on page). Filename like docs/demo.gif, then: ![askd in action](docs/demo.gif) -->
 
-## ⚠️ Data flow & your responsibility — read this first
+## Highlights
 
-askd is **read-only on your machine** and the bridge binds `127.0.0.1` only.
-That is *not* the same as "your data stays local":
-
-- The content you ask about — **page text, any document a fetcher pulls, and any
-  local code the agent reads** — is sent to your **selected backend's cloud** for
-  inference: **Claude → Anthropic, Codex → OpenAI**. It leaves your machine.
-- askd does **not** and **cannot** enforce your organization's data-classification
-  rules. It can't know that a given page is confidential, and it won't stop you
-  from opening the panel on it. **That judgment is yours.**
-
-Before using it on anything work-related:
-
-- Check your employer's policy on third-party AI tools and code/doc sharing.
-- Don't use it on content above the sensitivity level those tools are approved for.
-- If your org runs an **approved or self-hosted model endpoint**, point the
-  underlying Claude Code / Codex CLIs at it so data doesn't go to a public cloud.
-
-You are responsible for where you open it. Different companies, different rules.
+- **Three-layer read-only security model** — tool allow-list + explicit deny-list
+  + a runtime `canUseTool` gate confining file access to the session root, with
+  invariants asserted as tests ([`safety.js`](bridge/src/safety.js),
+  [`safety.test.js`](bridge/test/safety.test.js),
+  [architecture](docs/ARCHITECTURE.md#read-only-security-model)).
+- **Verified citations** — the page is numbered into segments; the model cites
+  with `[n]`; the bridge **resolves and validates** every reference (flagging any
+  it invented) and the panel renders them as clickable footnotes that highlight
+  the source via the browser's native find ([`citations.js`](bridge/src/citations.js)).
+- **Client-side token budgeting** — head+tail clipping for long pages and a
+  recent-window-preserving compaction for replayed history, complementing (not
+  duplicating) the Agent SDK's loop-level compaction
+  ([`context.js`](bridge/src/context.js),
+  [architecture](docs/ARCHITECTURE.md#context-budgeting-contextjs)).
+- **Evaluation harness** — graded cases against the **real** Claude backend
+  reporting answer accuracy, **tool-call precision/recall**, citation validity,
+  and real cost/latency from the SDK; includes an adversarial case asserting the
+  agent refuses to write and never calls a write tool
+  ([`eval/`](eval/README.md)).
+- **Architecture deep-dive** — [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md):
+  request lifecycle, security layers, context budgeting, citations, backend
+  adapter abstraction.
 
 ---
 
@@ -129,6 +133,29 @@ Restart the bridge. On matching sites the panel will fetch via your CLI; on any
 other site (or on failure) it uses the page's visible text. This file may
 reference an **internal tool**, so it lives in `~/.askd/` and is **gitignored** —
 keep it out of any public repo.
+
+---
+
+## ⚠️ Data flow & your responsibility
+
+askd is **read-only on your machine** and the bridge binds `127.0.0.1` only.
+That is *not* the same as "your data stays local":
+
+- The content you ask about — **page text, any document a fetcher pulls, and any
+  local code the agent reads** — is sent to your **selected backend's cloud** for
+  inference: **Claude → Anthropic, Codex → OpenAI**. It leaves your machine.
+- askd does **not** and **cannot** enforce your organization's data-classification
+  rules. It can't know that a given page is confidential, and it won't stop you
+  from opening the panel on it. **That judgment is yours.**
+
+Before using it on anything work-related:
+
+- Check your employer's policy on third-party AI tools and code/doc sharing.
+- Don't use it on content above the sensitivity level those tools are approved for.
+- If your org runs an **approved or self-hosted model endpoint**, point the
+  underlying Claude Code / Codex CLIs at it so data doesn't go to a public cloud.
+
+You are responsible for where you open it. Different companies, different rules.
 
 ---
 
@@ -230,6 +257,7 @@ bridge/      Node HTTP bridge (loopback, token-gated, read-only)
   fetchers.example.json              # sample fetcher config (no real tool)
 extension/   Chrome MV3 (manifest, background, content, sidepanel.*, vendor/)
 eval/        Evaluation harness (see eval/README.md)
+docs/        Architecture and design docs
 ```
 
 The Codex backend is **experimental**: argv ordering is unit-tested; its event
