@@ -48,6 +48,39 @@ test('query param order does not matter', () => {
   )
 })
 
+test('encoded separators in a query value do not collide with real separators', () => {
+  // ?a=1%26b%3D2 is ONE param whose value literally contains "&" and "=";
+  // ?a=1&b=2 is TWO params. They must never share a session key.
+  const encoded = normalizeUrlKey('https://example.com/p?a=1%26b%3D2')
+  const plain = normalizeUrlKey('https://example.com/p?a=1&b=2')
+  assert.notEqual(encoded, plain)
+  // Reserved characters stay percent-encoded in the key instead of leaking
+  // raw separators that would make the query ambiguous.
+  assert.equal(encoded, 'https://example.com/p?a=1%26b%3D2')
+})
+
+test('encoded separators in a query key do not collide with real separators', () => {
+  assert.notEqual(
+    normalizeUrlKey('https://example.com/p?a%26b=1'),
+    normalizeUrlKey('https://example.com/p?a&b=1'),
+  )
+})
+
+test('equivalent query encodings still share a session', () => {
+  // %20 and + both decode to a space: same logical param, same key.
+  assert.equal(
+    normalizeUrlKey('https://example.com/p?q=a%20b'),
+    normalizeUrlKey('https://example.com/p?q=a+b'),
+  )
+})
+
+test('encoded query values survive sorting and tracking removal', () => {
+  assert.equal(
+    normalizeUrlKey('https://example.com/p?b=2&a=1%26x%3D3&utm_source=z'),
+    normalizeUrlKey('https://example.com/p?a=1%26x%3D3&b=2'),
+  )
+})
+
 test('meaningful query params keep pages distinct', () => {
   assert.notEqual(
     normalizeUrlKey('https://example.com/doc?id=1'),
