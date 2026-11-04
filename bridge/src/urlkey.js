@@ -84,7 +84,16 @@ export function normalizeUrlKey(rawUrl) {
     params.push([k, v])
   }
   params.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0))
-  const qs = params.map(([k, v]) => (v === '' ? k : `${k}=${v}`)).join('&')
+  // `searchParams` yields DECODED keys/values, so serialize them re-encoded.
+  // Joining them raw would let a value like `1&b=2` masquerade as two params
+  // and collide with a genuinely different URL. The bare-key form for empty
+  // values is preserved, but separators inside keys/values stay escaped.
+  const qs = params
+    .map(([k, v]) => {
+      const ek = encodeURIComponent(k)
+      return v === '' ? ek : `${ek}=${encodeURIComponent(v)}`
+    })
+    .join('&')
 
   // Fragment: keep hash *routes* (#/foo — SPA routing identifies the page) but
   // drop plain anchors (#section — same page, different scroll position).
